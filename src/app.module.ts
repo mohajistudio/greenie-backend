@@ -11,7 +11,6 @@ import { PostLike } from './entities/post-like.entity';
 import { Post } from './entities/post.entity';
 import { Comment } from './entities/comment.entity';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { RefreshToken } from './entities/refresh-token-entity';
 
@@ -50,7 +49,6 @@ import { RefreshToken } from './entities/refresh-token-entity';
     PostsModule,
     UsersModule,
     CommentsModule,
-    AdminModule,
     AuthModule,
   ],
   controllers: [AppController],
