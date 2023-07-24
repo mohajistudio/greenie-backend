@@ -14,7 +14,6 @@ import { UpdateUserDto } from './dtos/update-user.dto';
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectEntityManager() private entityManger: EntityManager,
     private mailService: MailerService,
     @InjectRepository(User) private userRepository: Repository<User>,
     @InjectEntityManager() private readonly entityManager: EntityManager,
@@ -27,18 +26,19 @@ export class UsersService {
       .leftJoinAndSelect('user.post', 'post')
       .getOne();
   }
-
-  async sendOtpEmail(email: string): Promise<void> {
-    const otp = generateOTP();
-    const user = await this.entityManger.findOne(User, { where: { email } });
+  async sendOtpEmail(email: string, mode: string): Promise<void> {
+    const prefix = mode === 'email' ? 'E' : 'C';
+    const otp = generateOTP(prefix);
+    const user = await this.entityManager.findOne(User, { where: { email } });
 
     if (!user) {
       throw new NotFoundException('해당 유저를 찾을 수 없습니다.');
     }
     user.otp = otp;
     user.otpCreatedAt = new Date();
-    await this.entityManger.save(user);
+    await this.entityManager.save(user);
 
+    console.log('otp:' + otp);
     await this.mailService.sendMail({
       to: email,
       from: 'mohajistudio@gmail.com',
@@ -83,8 +83,8 @@ export class UsersService {
     });
   }
 
-  async verifyOtp(email: string, otp: string): Promise<void> {
-    const user = await this.entityManger.findOne(User, {
+  async verifyOtp(email: string, otp: string, mode: string): Promise<string> {
+    const user = await this.entityManager.findOne(User, {
       where: { email },
     });
 
@@ -96,11 +96,15 @@ export class UsersService {
     const otpExpiryTime =
       (now.getTime() - user.otpCreatedAt.getTime()) / (1000 * 60);
 
-    if (!(user.otp === otp && otpExpiryTime <= 5)) {
+    const validTime = mode === 'changePassword' ? 10 : 5;
+
+    if (!(user.otp === otp && otpExpiryTime <= validTime)) {
       throw new BadRequestException('유효하지 않은 OTP 입니다.');
     }
     user.emailVerified = true;
-    await this.entityManger.save(user);
+    await this.entityManager.save(user);
+
+    return user.email;
   }
 
   async checkNicknameDuplicate(nickname: string) {
@@ -120,28 +124,35 @@ export class UsersService {
 
     return { message: '사용가능한 닉네임입니다.' };
   }
-
   async update(userId: number, updateUserDto: UpdateUserDto) {
-    const user = await this.userRepository.findOneBy({ id: userId });
+    const user = new User();
+    user.id = userId;
+
+    const userProfile = await this.entityManager.findOneBy(UserProfile, {
+      user,
+    });
 
     if (!user) {
       throw new NotFoundException('유저를 찾을 수 없습니다');
     }
 
     if (updateUserDto.nickname) {
-      user.nickname = updateUserDto.nickname;
+      userProfile.nickname = updateUserDto.nickname;
     }
 
     if (updateUserDto.profileImage) {
-      user.profileImage = updateUserDto.profileImage;
+      userProfile.profileImage = updateUserDto.profileImage;
     }
 
-    const result = await this.userRepository.update(
+    await this.entityManager.update(
+      UserProfile,
       { id: userId },
       {
-        nickname: updateUserDto.nickname ?? user.nickname,
-        profileImage: updateUserDto.profileImage ?? user.profileImage,
+        nickname: updateUserDto.nickname ?? userProfile.nickname,
+        profileImage: updateUserDto.profileImage ?? userProfile.profileImage,
       },
     );
+
+    return { message: '업데이트 성공' };
   }
 }

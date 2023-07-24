@@ -32,6 +32,7 @@ export class AuthService {
   async login(email: string, password: string): Promise<LoginResponseDto> {
     const user = await this.entityManager.findOne(User, {
       where: { email },
+      relations: { profile: true },
     });
 
     if (!user) {
@@ -205,9 +206,10 @@ export class AuthService {
     userId: number,
     refreshToken: string,
   ): Promise<User> {
-    const user = new User();
-    user.id = userId;
-
+    const user = await this.entityManager.findOne(User, {
+      where: { id: userId },
+      relations: ['profile'],
+    });
     const refreshTokens = await this.entityManager.findBy(RefreshToken, {
       user,
     });
@@ -253,25 +255,28 @@ export class AuthService {
     }
   }
 
-  async changePassword(userId: number, password: string, newPassword: string) {
-    const user = await this.entityManager.findOneBy(User, { id: userId });
+  async changePassword(
+    email: string,
+    otp: string,
+    newPassword: string,
+    mode: string,
+  ) {
+    const user = await this.usersService.verifyOtp(email, otp, mode);
 
     if (!user) {
       throw new NotFoundException('존재하지 않는 계정입니다');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      throw new BadRequestException('잘못된 비밀번호입니다');
-    }
-
     const encryptedPassword = await this.encrypt(newPassword);
 
     await this.entityManager
-      .update(User, userId, {
-        password: encryptedPassword,
-      })
+      .update(
+        User,
+        { email },
+        {
+          password: encryptedPassword,
+        },
+      )
       .catch(() => {
         throw new InternalServerErrorException('유저 업데이트 실패');
       });
