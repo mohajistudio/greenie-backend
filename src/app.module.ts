@@ -14,6 +14,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { AuthModule } from './auth/auth.module';
 import { RefreshToken } from './entities/refresh-token-entity';
 import { UserProfile } from './entities/user-profile.entity';
+import { CommentLike } from './entities/comment-like.entity';
 
 @Module({
   imports: [
@@ -29,7 +30,15 @@ import { UserProfile } from './entities/user-profile.entity';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
       synchronize: true,
-      entities: [User, Post, PostLike, Comment, RefreshToken, UserProfile],
+      entities: [
+        User,
+        Post,
+        PostLike,
+        CommentLike,
+        Comment,
+        RefreshToken,
+        UserProfile,
+      ],
       namingStrategy: new SnakeNamingStrategy(),
     }),
     MailerModule.forRoot({
@@ -46,7 +55,7 @@ import { UserProfile } from './entities/user-profile.entity';
         from: '"nest-modules" <modules@nestjs.com>',
       },
     }),
-    TypeOrmModule.forFeature([User, Post, PostLike]),
+    TypeOrmModule.forFeature([User, Post, PostLike, CommentLike]),
     PostsModule,
     UsersModule,
     CommentsModule,
